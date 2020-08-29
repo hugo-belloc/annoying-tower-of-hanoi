@@ -34,6 +34,7 @@ Move Top Disc from T1 to T2.
  ──┼──    │       │
 ───┴──────┴───────┴───
    1      2       3
+
       Step 2
 =====================
    │      │       │
@@ -156,3 +157,13 @@ but allow the
 └───────────────────────────┘ |
 ___   _   _   _   _   _   ____ EXTRA_WIDTH=12 chars including newline
    *** *** *** *** *** *** WIDTH_DEPTH_COEFF(6)*depth
+
+hanoi_ext(states, dest, level)
+   if level is 0:
+      return
+   src = states.find_tower(level - 1)
+   if src != dest:
+      inter = Towers::find_last_tower(src, dest)
+      hanoi_ext(states, inter, level - 1)
+      states.move_disc(src, dest)
+   hanoi_ext(states, dest, level - 1)
