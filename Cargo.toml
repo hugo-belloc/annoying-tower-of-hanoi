@@ -1,5 +1,5 @@
 [package]
-name = "annoying-hanoi-towers"
+name = "annoying-tower-of-hanoi"
 version = "0.1.0"
 authors = ["Hugo Belloc <belloc.hugo@gmail.com>"]
 edition = "2018"

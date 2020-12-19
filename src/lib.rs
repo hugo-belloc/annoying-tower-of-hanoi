@@ -1,6 +1,6 @@
-use std::io::{Write};
-use std::fmt;
 use std::collections::BTreeSet;
+use std::fmt;
+use std::io::Write;
 
 /// Describes the 3 kinds of Hanoi Towers.
 #[derive(Debug, PartialEq, Clone, Hash)]
@@ -11,6 +11,9 @@ pub enum HanoiTower {
 }
 
 impl HanoiTower {
+    /// Number of Hanoi Tower
+    pub const NUMBER_HANOI_TOWER: usize = 3;
+
     /// Get the number of the Tower in interval (1..3).
     pub fn number(&self) -> u8 {
         match self {
@@ -32,7 +35,7 @@ impl HanoiTower {
     /// Takes 2 distinct towers t1 and t2 and return the last one.
     /// Will panic if t1 == t2.
     /// ```
-    /// use annoying_hanoi_towers::HanoiTower;
+    /// use annoying_tower_of_hanoi::HanoiTower;
     ///
     /// assert_eq!(HanoiTower::T1, HanoiTower::last_tower(HanoiTower::T2, HanoiTower::T3));
     /// assert_eq!(HanoiTower::T2, HanoiTower::last_tower(HanoiTower::T1, HanoiTower::T3));
@@ -46,7 +49,7 @@ impl HanoiTower {
             (T2, T3) => T1,
             (T3, T1) => T2,
             (T3, T2) => T1,
-            _ => panic!("Invalid move from {} to {} to find_last_tower", t1.clone(), t2.clone()),
+            _ => panic!("Invalid move from {} to {} to find_last_tower", t1, t2),
         }
     }
 }
@@ -64,17 +67,23 @@ pub trait HanoiDiscMover {
     fn move_disc(&mut self, src: HanoiTower, dest: HanoiTower);
 }
 
+type Discs =[Vec<usize>; HanoiTower::NUMBER_HANOI_TOWER];
 /// Type that represents a mutable states of the disc on the Hanoi Towers.
 pub trait HanoiDiscsState {
+
+
     /// Move the top disc from src HanoiTower to dest HanoiTower.
     fn move_disc(&mut self, src: HanoiTower, dest: HanoiTower);
 
-    /// The number of discs
+    /// The number of Discs
     fn depth(&self) -> usize;
 
     /// Find the Hanoi Tower hosting the disc.
     /// Panic if disc_number >= depth.
     fn find_disc(&self, disc_number: usize) -> HanoiTower;
+
+    /// Returns a Reference to all discs
+    fn all_discs(&self) -> &Discs;
 }
 
 /// Store each disc move
@@ -152,13 +161,13 @@ impl<'a> HanoiSolver<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct HanoiTowersDiscs {
-    discs: [Vec<usize>; 3],
+    discs: [Vec<usize>; HanoiTower::NUMBER_HANOI_TOWER],
     depth: usize,
 }
 
 #[derive(Debug, PartialEq)]
-pub struct InvalidDiscsError{
-    pub missing_values: Vec<usize>
+pub struct InvalidDiscsError {
+    pub missing_values: Vec<usize>,
 }
 
 impl HanoiTowersDiscs {
@@ -172,23 +181,26 @@ impl HanoiTowersDiscs {
             depth,
         }
     }
-    pub fn build_from_discs(discs: [Vec<usize>;3]) -> Result<HanoiTowersDiscs, InvalidDiscsError> {
-        let mut max_val: usize=0;
-        let all_values: BTreeSet<usize> = discs[0].iter()
+    pub fn build_from_discs(discs: [Vec<usize>; HanoiTower::NUMBER_HANOI_TOWER]) -> Result<HanoiTowersDiscs, InvalidDiscsError> {
+        let mut max_val: usize = 0;
+        let all_values: BTreeSet<usize> = discs[0]
+            .iter()
             .chain(discs[1].iter())
             .chain(discs[2].iter())
-            .inspect(|x| {max_val = max_val.max(**x);})
+            .inspect(|x| {
+                max_val = max_val.max(**x);
+            })
             .cloned()
             .collect();
         let continuous_values: BTreeSet<usize> = (0..=max_val).collect();
-        let missing_values: Vec<usize> = continuous_values
-            .difference(&all_values).cloned().collect();
+        let missing_values: Vec<usize> =
+            continuous_values.difference(&all_values).cloned().collect();
         if !missing_values.is_empty() {
-            Err(InvalidDiscsError{missing_values})
+            Err(InvalidDiscsError { missing_values })
         } else {
-            Ok(HanoiTowersDiscs{
+            Ok(HanoiTowersDiscs {
                 discs,
-                depth: max_val
+                depth: max_val,
             })
         }
     }
@@ -215,7 +227,9 @@ impl HanoiDiscMover for HanoiTowersDiscs {
 
 #[cfg(test)]
 mod tests {
-    use crate::{DiscMoveStore, HanoiDiscMover, HanoiSolver, HanoiTower, HanoiTowersDiscs};
+    use crate::{
+        DiscMoveStore, HanoiDiscMover, HanoiSolver, HanoiTower, HanoiTowersDiscs, InvalidDiscsError,
+    };
 
     #[test]
     fn hanoi_tower_number() {
@@ -316,7 +330,7 @@ mod tests {
 
     #[test]
     fn build_from_discs_valid() {
-        let discs: Vec<[Vec<usize>;3]> = vec![
+        let discs: Vec<[Vec<usize>; 3]> = vec![
             [vec![3, 2, 1, 0], vec![], vec![]],
             [vec![3, 2, 1], vec![], vec![0]],
             [vec![3, 2], vec![], vec![0, 1]],
@@ -326,9 +340,34 @@ mod tests {
             [vec![0, 1], vec![2], vec![]],
         ];
         for disc in discs {
-            let hanoi_tower = HanoiTowersDiscs::build_from_discs(disc.clone())
-                .expect("Missing disc");
-            assert_eq!(disc,  *(hanoi_tower.all_discs()));
+            let hanoi_tower =
+                HanoiTowersDiscs::build_from_discs(disc.clone()).expect("Missing disc");
+            assert_eq!(disc, *(hanoi_tower.all_discs()));
+        }
+    }
+
+    #[test]
+    fn invalid_build_from_discs_panic() {
+        let discs: Vec<[Vec<usize>; 3]> = vec![
+            [vec![2, 1, 0], vec![], vec![4]],
+            [vec![3, 1], vec![], vec![0]],
+            [vec![3], vec![], vec![1]],
+            [vec![3], vec![2], vec![0]],
+            [vec![], vec![3], vec![]],
+            [vec![], vec![2], vec![]],
+        ];
+
+        let missing_discs: Vec<Vec<usize>> = vec![
+            vec![3],
+            vec![2],
+            vec![0, 2],
+            vec![1],
+            vec![0, 1, 2],
+            vec![0, 1],
+        ];
+        for (disc, missing_values) in discs.iter().zip(missing_discs) {
+            let hanoi_tower = HanoiTowersDiscs::build_from_discs(disc.clone());
+            assert_eq!(Err(InvalidDiscsError { missing_values }), hanoi_tower);
         }
     }
 }
